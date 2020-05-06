@@ -1,6 +1,6 @@
 #This code has been developed by Arkasama Bandyopadhyay at the University of Texas at Austin
-#This code represents a generalized tool to forecast the change in 4CP (4-coincident peak) loads and payments in response 
-#to varying amounts of solar and storage capacity for utilities within ERCOT
+#This code represents a generalized tool to forecast the change in 4CP (4-coincident peak) loads and payments (TCOS obligations) 
+#in response to varying amounts of solar and storage capacity for utilities within ERCOT
 #This code supplements the paper "How Solar and Storage Can Reduce Coincident Peak Loads and Payments: A Case Study in 
 #Austin, TX" by Arkasama Bandyopadhyay, Joshua D. Rhodes, Julia P. Conger, and Michael E. Webber
 
@@ -10,7 +10,7 @@ dir=getwd()
 setwd(dir)
 
 
-# Reading the raw ERCOT historical load files (files not provided as a part of this code)
+# Reading the raw ERCOT historical load files for years 2011-2017 (files not provided as a part of this code)
 ERCOT_2011_raw <- read.csv('2011_ERCOT_Hourly_Load_Data.csv', header = TRUE)
 ERCOT_2012_raw <- read.csv('2012_ERCOT_Hourly_Load_Data.csv', header = TRUE)
 ERCOT_2013_raw <- read.csv('2013_ERCOT_Hourly_Load_Data.csv', header = TRUE)
@@ -387,7 +387,7 @@ ERCOT_forecast_aug <-ERCOT_forecast[5857:8832, 1:10]
 ERCOT_forecast_sept <-ERCOT_forecast[8833:11712, 1:10]
 
 #----------------------------------------------------------------------------------
-#Finding the maximum  and position of the maximum from each month
+#Finding the maximum  and position of the maximum from each month i.e. find the maximum ERCOT load and timing of the maximum ERCOT load for each of the summer months from June to September
 I_0_june <- apply(ERCOT_forecast_june, 2, which.max)
 M_0_june <- apply(ERCOT_forecast_june, 2, max)
 I_0_july <- apply(ERCOT_forecast_july, 2, which.max)
@@ -400,7 +400,7 @@ M_0_sept <- apply(ERCOT_forecast_sept, 2, max)
 #----------------------------------------------------------------------------------
 #Austin Energy Load
 #----------------------------------------------------------------------------------
-#reading in the raw file (input file not provided as a part of this code)
+#reading in the raw file with 15-minute interval historical demand data (input file not provided as a part of this code)
 AE_raw <- read.csv('AE_Load.csv')
 #getting the load, month and year values
 AE_load<- AE_raw[, 7]
@@ -460,7 +460,7 @@ AE_sept= (AE_2011_sept + AE_2012_sept + AE_2013_sept + AE_2014_sept + AE_2015_se
 AE = rbind(c(AE_june, AE_july, AE_aug, AE_sept))
 
 #----------------------------------------------------------------------------------
-#Scaling AE load with projected annual energy (from AE)
+#Scaling AE load with projected annual energy (from AE - available publicly)
 ratio_AE <- c(1.05, 1.05, 1.05, 1.04, 1.05, 1.05, 1.06, 1.07, 1.07, 1.08)
 AE_forecast <- matrix(0, nrow=11712, ncol=10)
   for (j in 1:10){
@@ -476,7 +476,7 @@ AE_forecast_sept <-AE_forecast[8833:11712, 1:10]
 
 
 #----------------------------------------------------------------------------------
-#Solar Data 80 MW - Typical meteorological year
+#Solar Data 80 MW - Typical meteorological year from NREL PVWatts calculator
 #----------------------------------------------------------------------------------
 #setwd("/Users/arkasama/Google Drive/Dissertation_Chapter_1")
 #Importing values (input files not provided as a part of this code)
@@ -673,7 +673,7 @@ AE_4CP_sept_base <-matrix(0, nrow=1, ncol=10)
 
 #4CP Load = Load when ERCOT peaks - solar - storage
 for (i in 1:10) {
-  AE_4CP_june_base[,i] <- AE_forecast_june[I_0_june[i], i] - Solar_80_june[I_0_june[i]]/1000000 - storage_base
+  AE_4CP_june_base[,i] <- AE_forecast_june[I_0_june[i], i] - Solar_80_june[I_0_june[i]]/1000000 - storage_base # Solar data is in W and so divided by 10^6 to convert to MW
   AE_4CP_july_base[,i] <- AE_forecast_july[I_0_july[i], i]- Solar_80_july[I_0_july[i]]/1000000 - storage_base
   AE_4CP_aug_base[,i] <- AE_forecast_aug[I_0_aug[i], i]- Solar_80_aug[I_0_aug[i]]/1000000 - storage_base
   AE_4CP_sept_base[,i] <- AE_forecast_sept[I_0_sept[i], i]- Solar_80_sept[I_0_sept[i]]/1000000- storage_base
@@ -692,13 +692,15 @@ ERCOT_1_july_base <- matrix(0, nrow=1, ncol=10)
 ERCOT_1_aug_base <- matrix(0, nrow=1, ncol=10)
 ERCOT_1_sept_base <- matrix(0, nrow=1, ncol=10)
 AE_4CP_Payment_base <-matrix(0, nrow=1, ncol=10)
-#ERCOT 4CP Load for migration=1: = max ERCOT 4CP - solar - storage 
+
+#ERCOT 4CP Load: = max ERCOT 4CP - solar - storage 
 for (i in 1:10){
   ERCOT_1_june_base[,i]=M_0_june[i] - Solar_80_june[I_0_june[i]]/1000000 - storage_base
   ERCOT_1_july_base[,i]=M_0_july[i] - Solar_80_july[I_0_july[i]]/1000000 - storage_base
   ERCOT_1_aug_base[,i]=M_0_aug[i] - Solar_80_aug[(I_0_aug[i])]/1000000 - storage_base
   ERCOT_1_sept_base[,i]=M_0_sept[i] - Solar_80_sept[(I_0_sept[i])] /1000000- storage_base
 }
+#Averaging across the four months
 ERCOT_4CP_interm <- rbind(ERCOT_1_june_base, ERCOT_1_july_base, ERCOT_1_aug_base, ERCOT_1_sept_base)
 ERCOT_4CP<-apply(ERCOT_4CP_interm, 2,sum)/4
 access_fee_base <- 1.187*1000; #$/MW #Austin Energy's transmission rate as of 2018
@@ -840,7 +842,7 @@ ERCOT_1_july_solar_180 <-matrix(0, nrow=1, ncol=10)
 ERCOT_1_aug_solar_180 <-matrix(0, nrow=1, ncol=10)
 ERCOT_1_sept_solar_180 <-matrix(0, nrow=1, ncol=10)
 
-#Initializing matrices to calculate 4CP Payments for Austin Energy for 80 MW
+#Initializing matrices to calculate 4CP Payments for Austin Energy for different solar capacities
 AE_4CP_Payment_solar_80<-matrix(0, nrow=1, ncol=10)
 AE_4CP_Payment_solar_100<-matrix(0, nrow=1, ncol=10)
 AE_4CP_Payment_solar_120<-matrix(0, nrow=1, ncol=10)
@@ -880,9 +882,9 @@ for (i in 1:10){
   ERCOT_1_aug_solar_180[i]<-M_0_aug[i] - Solar_180_aug[I_0_aug[i]]/1000000 - storage_base
   ERCOT_1_sept_solar_180[i]<-M_0_sept[i] - Solar_180_sept[I_0_sept[i]]/1000000 - storage_base
   
-  
-  
 }
+
+#Averaging across the four summer months
 ERCOT_4CP_solar_80_interm<-rbind(ERCOT_1_june_solar_80, ERCOT_1_july_solar_80, ERCOT_1_aug_solar_80, ERCOT_1_sept_solar_80)
 ERCOT_4CP_solar_80<-apply(ERCOT_4CP_solar_80_interm, 2, sum)/4
 
@@ -897,7 +899,7 @@ ERCOT_4CP_solar_160<-apply(ERCOT_4CP_solar_160_interm, 2, sum)/4
 ERCOT_4CP_solar_180_interm<-rbind(ERCOT_1_june_solar_180, ERCOT_1_july_solar_180, ERCOT_1_aug_solar_180, ERCOT_1_sept_solar_180)
 ERCOT_4CP_solar_180<-apply(ERCOT_4CP_solar_180_interm, 2, sum)/4
 
-for (i in 1:10) {
+for (i in 1:10) { #for each of the 10 years of forecast
   AE_4CP_Payment_solar_80[i]<- -ERCOT_4CP_solar_80[i] * access_fee_base + AE_4CP_solar_80[i]*sum_access_fee[i]*1000
   AE_4CP_Payment_solar_100[i]<- -ERCOT_4CP_solar_100[i] * access_fee_base + AE_4CP_solar_100[i]*sum_access_fee[i]*1000;
   AE_4CP_Payment_solar_120[i]<- -ERCOT_4CP_solar_120[i] * access_fee_base + AE_4CP_solar_120[i]*sum_access_fee[i]*1000;
@@ -982,7 +984,7 @@ for (i in 1:10){
   AE_4CP_aug_storage_30[i]<-AE_forecast_aug[I_0_aug[i], i] - Solar_80_aug[I_0_aug[i]] /1000000- 30
   AE_4CP_sept_storage_30[i]<-AE_forecast_sept[I_0_sept[i], i] - Solar_80_sept[I_0_sept[i]]/1000000 - 30
 }
-
+#Averaging across the four summer months
 AE_4CP_storage_5_interm <- rbind(AE_4CP_june_storage_5, AE_4CP_july_storage_5, AE_4CP_aug_storage_5, AE_4CP_sept_storage_5)
 AE_4CP_storage_5 <- apply(AE_4CP_storage_5_interm,2, sum)/4
 
@@ -1001,7 +1003,7 @@ AE_4CP_storage_25 <- apply(AE_4CP_storage_25_interm,2, sum)/4
 AE_4CP_storage_30_interm <- rbind(AE_4CP_june_storage_30, AE_4CP_july_storage_30, AE_4CP_aug_storage_30, AE_4CP_sept_storage_30)
 AE_4CP_storage_30 <- apply(AE_4CP_storage_30_interm,2, sum)/4
 #===========================================================================================
-#Calculating 4CP Payments - Storage sensitivity: 5 MW (10 MWh), 10 MW (20 MWh), 15 MW (30 MWh), 20 MW (30 MWh), 25 MW (50 MWh), 30 MW (60 MWh),, Solar = 80 MW
+#Calculating 4CP Payments - Storage sensitivity: 5 MW (10 MWh), 10 MW (20 MWh), 15 MW (30 MWh), 20 MW (30 MWh), 25 MW (50 MWh), 30 MW (60 MWh), Solar = 80 MW
 #===========================================================================================
 ERCOT_1_june_storage_10 <-matrix(0, nrow=1, ncol=10)
 ERCOT_1_july_storage_10 <-matrix(0, nrow=1, ncol=10)
@@ -1041,6 +1043,7 @@ percent_payment_20 <- matrix(0, nrow=1, ncol=10)
 percent_payment_25 <- matrix(0, nrow=1, ncol=10)
 percent_payment_30 <- matrix(0, nrow=1, ncol=10)
 
+#Calculating ERCOT's 4CP load for each of the storage capacity scenarios
 for (i in 1:10){
   ERCOT_1_june_storage_10[i] <-M_0_june[i] - Solar_80_june[I_0_june[i]]/1000000 - 10
   ERCOT_1_july_storage_10[i]<-M_0_july[i] - Solar_80_july[I_0_july[i]]/1000000 - 10
@@ -1067,6 +1070,8 @@ for (i in 1:10){
   ERCOT_1_aug_storage_30[i]<-M_0_aug[i] - Solar_80_aug[I_0_aug[i]]/1000000- 30
   ERCOT_1_sept_storage_30[i]<-M_0_sept[i] - Solar_80_sept[I_0_sept[i]]/1000000 - 30
 }
+
+#Averaging across the four summer months
 ERCOT_4CP_storage_10_interm<-rbind(ERCOT_1_june_storage_10, ERCOT_1_july_storage_10, ERCOT_1_aug_storage_10, ERCOT_1_sept_storage_10)
 ERCOT_4CP_storage_10<-apply(ERCOT_4CP_storage_10_interm, 2, sum)/4
 ERCOT_4CP_storage_15_interm<-rbind(ERCOT_1_june_storage_15, ERCOT_1_july_storage_15, ERCOT_1_aug_storage_15, ERCOT_1_sept_storage_15)
@@ -1077,7 +1082,7 @@ ERCOT_4CP_storage_25_interm<-rbind(ERCOT_1_june_storage_25, ERCOT_1_july_storage
 ERCOT_4CP_storage_25<-apply(ERCOT_4CP_storage_25_interm, 2, sum)/4
 ERCOT_4CP_storage_30_interm<-rbind(ERCOT_1_june_storage_30, ERCOT_1_july_storage_30, ERCOT_1_aug_storage_30, ERCOT_1_sept_storage_30)
 ERCOT_4CP_storage_30<-apply(ERCOT_4CP_storage_30_interm, 2, sum)/4
-for (i in 1:10) {
+for (i in 1:10) { #for each of the 10 forecasted years
   AE_4CP_Payment_storage_10[i]<- -ERCOT_4CP_storage_10[i] * access_fee_base + AE_4CP_storage_10[i]*sum_access_fee[i]*1000;
   AE_4CP_Payment_storage_15[i]<- -ERCOT_4CP_storage_15[i] * access_fee_base + AE_4CP_storage_15[i]*sum_access_fee[i]*1000;
   AE_4CP_Payment_storage_20[i]<- -ERCOT_4CP_storage_20[i] * access_fee_base + AE_4CP_storage_20[i]*sum_access_fee[i]*1000;
